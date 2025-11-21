@@ -16,7 +16,7 @@ function ProductCard({ p }) {
           <span className="text-pink-700 font-bold">${p.price?.toFixed?.(2) ?? p.price}</span>
         </div>
         <p className="text-sm text-pink-900/70 line-clamp-2 min-h-[2.5rem]">{p.description}</p>
-        {p.sizes?.length > 0 && (
+        {Array.isArray(p.sizes) && p.sizes.length > 0 && (
           <p className="mt-2 text-xs text-pink-900/60">Sizes: {p.sizes.join(', ')}</p>
         )}
       </div>
@@ -27,15 +27,22 @@ function ProductCard({ p }) {
 function ProductGrid() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await fetch(`${baseUrl}/api/products`)
-        const data = await res.json()
-        setItems(data)
+        const data = await res.json().catch(() => null)
+        if (!res.ok || !Array.isArray(data)) {
+          setError('Could not load products.')
+          setItems([])
+        } else {
+          setItems(data)
+        }
       } catch (e) {
         console.error(e)
+        setError('Could not load products.')
       } finally {
         setLoading(false)
       }
@@ -44,12 +51,16 @@ function ProductGrid() {
   }, [])
 
   if (loading) return <div className="text-pink-900/70">Loading catalog...</div>
+  if (error) return <div className="text-pink-900/70">{error}</div>
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {items.map((p) => (
-        <ProductCard key={p.id} p={p} />
+        <ProductCard key={p.id || p._id || Math.random()} p={p} />
       ))}
+      {items.length === 0 && !error && (
+        <div className="text-pink-900/70">No products yet.</div>
+      )}
     </div>
   )
 }

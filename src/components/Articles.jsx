@@ -13,7 +13,7 @@ function ArticleCard({ a }) {
       <div className="p-4">
         <h3 className="font-semibold text-rose-900">{a.title}</h3>
         <p className="text-sm text-rose-900/70 line-clamp-2 min-h-[2.5rem]">{a.excerpt}</p>
-        {a.tags?.length > 0 && (
+        {Array.isArray(a.tags) && a.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-2">
             {a.tags.map((t) => (
               <span key={t} className="text-xs px-2 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">{t}</span>
@@ -28,15 +28,22 @@ function ArticleCard({ a }) {
 function Articles() {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await fetch(`${baseUrl}/api/articles`)
-        const data = await res.json()
-        setItems(data)
+        const data = await res.json().catch(() => null)
+        if (!res.ok || !Array.isArray(data)) {
+          setError('Could not load articles.')
+          setItems([])
+        } else {
+          setItems(data)
+        }
       } catch (e) {
         console.error(e)
+        setError('Could not load articles.')
       } finally {
         setLoading(false)
       }
@@ -45,12 +52,16 @@ function Articles() {
   }, [])
 
   if (loading) return <div className="text-rose-900/70">Loading articles...</div>
+  if (error) return <div className="text-rose-900/70">{error}</div>
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {items.map((a) => (
-        <ArticleCard key={a.id} a={a} />
+        <ArticleCard key={a.id || a._id || Math.random()} a={a} />
       ))}
+      {items.length === 0 && !error && (
+        <div className="text-rose-900/70">No articles yet.</div>
+      )}
     </div>
   )
 }

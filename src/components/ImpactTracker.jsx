@@ -14,15 +14,22 @@ function Stat({ label, value, suffix }) {
 function ImpactTracker() {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     const load = async () => {
       try {
         const res = await fetch(`${baseUrl}/api/impact`)
-        const data = await res.json()
-        setEntries(data)
+        const data = await res.json().catch(() => null)
+        if (!res.ok || !Array.isArray(data)) {
+          setError('Could not load impact entries.')
+          setEntries([])
+        } else {
+          setEntries(data)
+        }
       } catch (e) {
         console.error(e)
+        setError('Could not load impact entries.')
       } finally {
         setLoading(false)
       }
@@ -38,6 +45,7 @@ function ImpactTracker() {
   }, [entries])
 
   if (loading) return <div className="text-fuchsia-900/70">Loading impact...</div>
+  if (error) return <div className="text-fuchsia-900/70">{error}</div>
 
   return (
     <div className="space-y-6">
@@ -51,10 +59,10 @@ function ImpactTracker() {
         <h3 className="font-semibold text-fuchsia-900 mb-3">Recent Entries</h3>
         <ul className="divide-y divide-fuchsia-100">
           {entries.slice().reverse().map((e) => (
-            <li key={e.id} className="py-3 text-sm text-fuchsia-900/80">
+            <li key={e.id || e._id || Math.random()} className="py-3 text-sm text-fuchsia-900/80">
               <div className="flex items-center justify-between">
                 <span className="font-medium">{e.date}</span>
-                <span>{e.products_used?.join(', ')}</span>
+                <span>{Array.isArray(e.products_used) ? e.products_used.join(', ') : ''}</span>
                 <span>{e.pads_diverted || 0} pads</span>
                 <span>${(e.money_saved_usd || 0).toFixed(2)}</span>
               </div>
@@ -95,11 +103,15 @@ function EntryForm({ onAdded }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => null)
+      if (!res.ok || !data || !data.id) {
+        throw new Error('Failed to save')
+      }
       onAdded({ id: data.id, ...payload })
       setPads(0); setPlastic(0); setMoney(0)
     } catch (e) {
       console.error(e)
+      alert('Could not save entry. Please try again later.')
     } finally {
       setSubmitting(false)
     }
